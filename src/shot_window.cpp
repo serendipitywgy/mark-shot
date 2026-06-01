@@ -479,7 +479,7 @@ public:
         qreal confidence = 0.0;
     };
 
-    explicit PinnedImageWindow(QImage image)
+    explicit PinnedImageWindow(QImage image, const QPoint &screenOrigin = {})
         : m_pixmap(QPixmap::fromImage(std::move(image)))
         , m_imageSize(m_pixmap.size())
         , m_config(pinnedWindowConfig())
@@ -491,14 +491,22 @@ public:
         setCursor(Qt::OpenHandCursor);
 
         QSize targetSize = m_imageSize;
-        if (QScreen *screen = QApplication::primaryScreen()) {
+        QScreen *screen = QApplication::screenAt(screenOrigin);
+        if (!screen) {
+            screen = QApplication::primaryScreen();
+        }
+        if (screen) {
             const QSize maxSize = screen->availableGeometry().size() * 0.9;
             if (targetSize.width() > maxSize.width() || targetSize.height() > maxSize.height()) {
                 targetSize.scale(maxSize, Qt::KeepAspectRatio);
             }
             m_scale = static_cast<qreal>(targetSize.width()) / std::max(1, m_imageSize.width());
             setFixedSize(targetSize);
-            move(screen->availableGeometry().center() - rect().center());
+            if (!screenOrigin.isNull()) {
+                move(screenOrigin);
+            } else {
+                move(screen->availableGeometry().center() - rect().center());
+            }
         } else {
             setFixedSize(targetSize);
         }
@@ -6211,7 +6219,8 @@ void ShotWindow::pinSelection()
         return;
     }
 
-    auto *window = new PinnedImageWindow(output);
+    const QPoint selectionOrigin = m_sourceGeometry.topLeft() + m_selection.topLeft().toPoint();
+    auto *window = new PinnedImageWindow(output, selectionOrigin);
     window->show();
     window->raise();
     window->activateWindow();

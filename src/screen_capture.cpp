@@ -22,7 +22,19 @@ bool isWaylandSession()
 
 CaptureResult captureWithQScreen(const CaptureRequest &request)
 {
-    QScreen *screen = QGuiApplication::primaryScreen();
+    QScreen *screen = nullptr;
+    if (!request.preferredOutputName.isEmpty()) {
+        const QList<QScreen *> screens = QGuiApplication::screens();
+        for (QScreen *s : screens) {
+            if (s && s->name() == request.preferredOutputName) {
+                screen = s;
+                break;
+            }
+        }
+    }
+    if (!screen) {
+        screen = QGuiApplication::primaryScreen();
+    }
     if (!screen) {
         return {{}, QStringLiteral("no screen available for capture"), {}, {}};
     }
