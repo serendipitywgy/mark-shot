@@ -1825,6 +1825,7 @@ ShotWindow::ShotWindow(QImage frozenFrame, QString outputName, QRect sourceGeome
     m_textEditor->setToolTip(QStringLiteral("Enter inserts newline, click outside commits, Esc cancels"));
     m_textEditor->hide();
     m_textEditor->installEventFilter(this);
+    connect(m_textEditor, &QTextEdit::textChanged, this, &ShotWindow::updateTextEditorGeometry);
 
     m_laserClock.start();
     m_laserTimer = new QTimer(this);
@@ -3078,7 +3079,7 @@ void ShotWindow::wheelEvent(QWheelEvent *event)
                     annotation->width = std::clamp(annotation->width + steps * 2.0, kMinNumberWidth, kMaxNumberWidth);
                 } else if (annotation->tool == Tool::Text) {
                     const qreal oldWidth = annotation->width;
-                    annotation->width = std::clamp(annotation->width + steps * 1.5, 1.0, 1000.0);
+                    annotation->width = std::clamp(annotation->width + steps * 1.5, -10.0, 1000.0);
                     const qreal factor = ((19.0 + annotation->width) / (19.0 + oldWidth)) * 1.05;
                     annotation->rect.setWidth(annotation->rect.width() * factor);
                     annotation->rect = textContentRect(*annotation, false);
@@ -3122,13 +3123,18 @@ void ShotWindow::wheelEvent(QWheelEvent *event)
     } else if (m_tool == Tool::Pen || m_tool == Tool::Highlighter) {
         m_penWidth = std::clamp(m_penWidth + steps * 1.0, kMinStrokeWidth, kMaxStrokeWidth);
     } else if (m_tool == Tool::Text) {
-        m_shapeWidth = std::clamp(m_shapeWidth + steps * 1.5, 1.0, 1000.0);
+        m_shapeWidth = std::clamp(m_shapeWidth + steps * 1.5, -10.0, 1000.0);
     } else {
         m_shapeWidth = std::clamp(m_shapeWidth + steps * 1.0, kMinStrokeWidth, kMaxStrokeWidth);
     }
 
     if (m_draft.has_value()) {
         m_draft->width = currentToolWidth();
+    }
+    if (m_textEditor && m_textEditor->isVisible() && !m_editingTextAnnotationId.has_value()) {
+        m_textEditor->setStyleSheet(markshot::theme::textEditorStyleSheet(m_currentColor, m_textBackgroundColor, qRound(20.0 + m_shapeWidth)));
+        m_textEditor->setFont(QFont(m_textFontFamily, qRound(20.0 + m_shapeWidth), QFont::DemiBold));
+        updateTextEditorGeometry();
     }
     m_showWheelPreview = true;
     m_wheelPreviewPosition = event->position();
@@ -5599,8 +5605,14 @@ void ShotWindow::updateTextEditorGeometry()
     constexpr int kMinTextEditorHeight = 38;
     const int availableRight = std::max(kMinTextEditorWidth, qRound(selection.right() - topLeft.x() - 12));
     const int availableBottom = std::max(kMinTextEditorHeight, qRound(selection.bottom() - topLeft.y() - 12));
-    const int editorWidth = std::clamp(220, kMinTextEditorWidth, availableRight);
-    const int editorHeight = std::clamp(m_textEditor->fontMetrics().height() + 18, kMinTextEditorHeight, availableBottom);
+
+    QTextDocument *doc = m_textEditor->document();
+    doc->setTextWidth(availableRight);
+    const int contentWidth = qRound(doc->idealWidth()) + 18;
+    const int contentHeight = qRound(doc->size().height()) + 18;
+    const int editorWidth = std::clamp(contentWidth, kMinTextEditorWidth, availableRight);
+    const int editorHeight = std::clamp(contentHeight, kMinTextEditorHeight, availableBottom);
+
     QRect editorRect(qRound(topLeft.x()), qRound(topLeft.y()), editorWidth, editorHeight);
     editorRect.moveLeft(std::clamp(editorRect.left(), 8, std::max(8, width() - editorRect.width() - 8)));
     editorRect.moveTop(std::clamp(editorRect.top(), 8, std::max(8, height() - editorRect.height() - 8)));
@@ -5844,6 +5856,10 @@ void ShotWindow::drawWheelPreview(QPainter &painter)
         painter.setPen(QColor(204, 251, 241, 245));
         painter.drawText(bubble, Qt::AlignCenter, zoomText);
         painter.restore();
+        return;
+    }
+
+    if (m_textEditor && m_textEditor->isVisible()) {
         return;
     }
 
