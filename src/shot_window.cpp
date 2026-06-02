@@ -2372,9 +2372,9 @@ void ShotWindow::paintEvent(QPaintEvent *)
     dimPath.addRect(rect());
     if (hasUsableSelection()) {
         dimPath.addRect(imageRectToWidget(selection));
-        painter.fillPath(dimPath, QColor(2, 6, 12, 128));
+        painter.fillPath(dimPath, QColor(0, 0, 0, 100));
     } else {
-        painter.fillRect(rect(), QColor(2, 6, 12, 88));
+        painter.fillRect(rect(), QColor(0, 0, 0, 80));
     }
 
     if (hasUsableSelection()) {
@@ -2447,8 +2447,8 @@ void ShotWindow::paintEvent(QPaintEvent *)
 
     if (m_hoveredWindowRect.has_value() && m_mode == Mode::Selecting) {
         const QRectF hoverWidget = imageRectToWidget(QRectF(*m_hoveredWindowRect));
-        painter.setPen(QPen(QColor(94, 234, 212), 2.0));
-        painter.setBrush(QColor(94, 234, 212, 32));
+        painter.setPen(QPen(QColor(0, 174, 255), 2.0));
+        painter.setBrush(QColor(0, 174, 255, 32));
         painter.drawRect(hoverWidget);
     }
 
