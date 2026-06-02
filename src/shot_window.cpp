@@ -560,6 +560,9 @@ protected:
 
             clearTextSelection();
             m_dragOffset = event->globalPosition().toPoint() - frameGeometry().topLeft();
+            m_pressPosition = event->globalPosition().toPoint();
+            m_pressFramePos = frameGeometry().topLeft();
+            m_wasDragged = false;
             setCursor(Qt::ClosedHandCursor);
             if (QWindow *window = windowHandle()) {
                 if (window->startSystemMove()) {
@@ -589,7 +592,11 @@ protected:
         }
 
         if (event->buttons().testFlag(Qt::LeftButton)) {
-            move(event->globalPosition().toPoint() - m_dragOffset);
+            const QPoint globalPos = event->globalPosition().toPoint();
+            if ((globalPos - m_pressPosition).manhattanLength() > 5) {
+                m_wasDragged = true;
+            }
+            move(globalPos - m_dragOffset);
             event->accept();
             return;
         }
@@ -639,7 +646,9 @@ protected:
                 return;
             }
 
-            close();
+            if (!m_wasDragged && (frameGeometry().topLeft() - m_pressFramePos).manhattanLength() <= 3) {
+                close();
+            }
             event->accept();
             return;
         }
@@ -1541,6 +1550,9 @@ private:
     QSize m_imageSize;
     qreal m_scale = 1.0;
     QPoint m_dragOffset;
+    QPoint m_pressPosition;
+    QPoint m_pressFramePos;
+    bool m_wasDragged = false;
     PinnedWindowConfig m_config;
     QVector<OcrToken> m_ocrTokens;
     QVector<OcrToken> m_translatedTokens;
